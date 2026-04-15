@@ -32,6 +32,10 @@ HAND_CONNECTIONS = [
 cap = cv2.VideoCapture(0)
 print("Iniciando captura... Pressione 'q' ou 'ESC' para sair.")
 
+last_sign = ""
+can_print_landmarks = True
+release_time = 0;
+
 while cap.isOpened():
     
     success, frame = cap.read()
@@ -54,8 +58,14 @@ while cap.isOpened():
         
         result = knn_clf.predict(landmarks_arr.reshape(1, -1))
         sign = label_encoder.inverse_transform(result)
-
-        print(sign[0])
+        
+        # Avoids printing the same sign multiple times one after another in a short span of time.
+        if timestamp_ms >= release_time or sign[0] != last_sign:
+            print(sign[0], end="", flush=True)
+            if sign[0] == last_sign:
+                release_time = timestamp_ms + 500
+        
+        last_sign = sign[0]
         
         # --- Landmarks visual processing ---
         
