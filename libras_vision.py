@@ -59,11 +59,9 @@ while cap.isOpened():
         result = knn_clf.predict(landmarks_arr.reshape(1, -1))
         sign = label_encoder.inverse_transform(result)
         
-        print(knn_clf.predict_proba(landmarks_arr.reshape(1, -1)))
-        
         # Avoids printing the same sign multiple times one after another in a short span of time.
         if timestamp_ms >= release_time or sign[0] != last_sign:
-            #print(sign[0], end="", flush=True)
+            print(sign[0], end="", flush=True)
             if sign[0] == last_sign:
                 release_time = timestamp_ms + 500
         
