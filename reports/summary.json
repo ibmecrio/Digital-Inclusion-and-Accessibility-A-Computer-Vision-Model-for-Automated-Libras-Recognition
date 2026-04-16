@@ -1,0 +1,46 @@
+{
+  "dataset": {
+    "n_train": 34284,
+    "n_test": 11402,
+    "n_features": 63,
+    "n_classes": 21,
+    "classes": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "I",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "Y"
+    ]
+  },
+  "knn": {
+    "accuracy": 0.998070513944922,
+    "precision_macro": 0.9979962345000766,
+    "recall_macro": 0.9980267691492182,
+    "f1_macro": 0.9979824186894829,
+    "precision_weighted": 0.9981259548414819,
+    "recall_weighted": 0.998070513944922,
+    "f1_weighted": 0.9980707269038276,
+    "latency_ms_per_sample": 0.05826727767122539,
+    "total_inference_s": 0.6643635000073118
+  },
+  "baselines_accuracy": {
+    "most_frequent": 0.05034204525521838,
+    "stratified": 0.04464129100157867
+  }
+}
