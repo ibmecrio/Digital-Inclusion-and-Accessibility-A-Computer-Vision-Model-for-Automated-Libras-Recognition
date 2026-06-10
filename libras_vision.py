@@ -1,5 +1,6 @@
 import cv2
 import time
+import numpy as np
 import mediapipe as mp
 import extract
 import joblib
@@ -18,7 +19,7 @@ options = vision.HandLandmarkerOptions(
 
 detector = vision.HandLandmarker.create_from_options(options)
 
-knn_clf = joblib.load('models/knn_model.joblib')
+clf = joblib.load('models/svm_model.joblib')
 label_encoder = joblib.load('models/label_encoder.joblib')
 
 HAND_CONNECTIONS = [
@@ -32,7 +33,13 @@ HAND_CONNECTIONS = [
 cap = cv2.VideoCapture(0)
 print("Iniciando captura... Pressione 'q' ou 'ESC' para sair.")
 
+# Minimum probability for a prediction to be accepted (0.0 - 1.0).
+CONFIDENCE_THRESHOLD = 0.7
+
 last_sign = ""
+last_wrist_position = None
+last_timestamp_ms = int(time.time()*1000)
+
 can_print_landmarks = True
 release_time = 0;
 
@@ -41,9 +48,11 @@ while cap.isOpened():
     success, frame = cap.read()
     if not success:
         continue
-
+    
     frame = cv2.flip(frame, 1)
     timestamp_ms = int(time.time() * 1000)
+    
+    time_since_last_frame_ms = timestamp_ms - last_timestamp_ms
     
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
@@ -51,21 +60,39 @@ while cap.isOpened():
     detection_result = detector.detect_for_video(mp_image, timestamp_ms)
     
     if detection_result.hand_landmarks:
-        
+             
         # --- Sign processing ---
-    
-        landmarks_arr = extract.extract_relative_coords(detection_result)
         
-        result = knn_clf.predict(landmarks_arr.reshape(1, -1))
-        sign = label_encoder.inverse_transform(result)
+        landmarks_arr, current_wrist_position = extract.extract_relative_coords(
+            detection_result, 
+            time_since_last_frame_ms, 
+            last_wrist_position
+        )
         
-        # Avoids printing the same sign multiple times one after another in a short span of time.
-        if timestamp_ms >= release_time or sign[0] != last_sign:
-            print(sign[0], end="", flush=True)
-            if sign[0] == last_sign:
-                release_time = timestamp_ms + 500
-        
-        last_sign = sign[0]
+        if len(landmarks_arr) > 0:
+            # The models are trained on the 63 landmark features only.
+            # extract.py also appends 3 wrist-velocity features (66 total),
+            # which are dropped here since static letters don't use them.
+            features = landmarks_arr[:63].reshape(1, -1)
+
+            # predict_proba is the uniform confidence interface across every
+            # sklearn model used here. The confidence is the probability of the
+            # chosen class, i.e. the highest one.
+            probabilities = clf.predict_proba(features)
+            class_idx = int(np.argmax(probabilities, axis=1)[0])
+            confidence = float(probabilities[0, class_idx])
+            sign = label_encoder.inverse_transform([class_idx])[0]
+
+            if confidence >= CONFIDENCE_THRESHOLD:
+                # Avoids printing the same sign multiple times one after another in a short span of time.
+                if timestamp_ms >= release_time or sign != last_sign:
+                    print(f"{sign} ({confidence:.0%})", end=" ", flush=True)
+                    if sign == last_sign:
+                        release_time = timestamp_ms + 500
+
+                last_sign = sign
+            
+        last_wrist_position = current_wrist_position
         
         # --- Landmarks visual processing ---
         
@@ -88,7 +115,11 @@ while cap.isOpened():
             for landmark in hand_landmarks:
                 x, y = int(landmark.x * w), int(landmark.y * h)
                 cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
+    else:
+        last_wrist_position = None
 
+    last_timestamp_ms = timestamp_ms
+    
     cv2.imshow('Libras Vision - Hand Tracking', frame)
 
     key = cv2.waitKey(1) & 0xFF

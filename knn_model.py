@@ -17,10 +17,15 @@ label_encoder = LabelEncoder()
 
 y_num = label_encoder.fit_transform(y)
 
-knn_clf = KNeighborsClassifier(n_neighbors=5)
+# Uniform weights over more neighbors give a meaningful confidence score:
+# predict_proba returns the fraction of the 21 neighbors that voted for the
+# class, which actually measures neighbor agreement. (distance weighting was
+# avoided here because the nearest neighbor dominates and pins confidence
+# near 100%, defeating the purpose of a confidence index.)
+knn_clf = KNeighborsClassifier(n_neighbors=21, weights='uniform')
 knn_clf.fit(X, y_num)
 
-joblib.dump(knn_clf, 'knn_model.joblib')
-joblib.dump(label_encoder, 'label_encoder.joblib')
+joblib.dump(knn_clf, 'models/knn_model.joblib')
+joblib.dump(label_encoder, 'models/label_encoder.joblib')
 
 print("Model and label encoder created!")

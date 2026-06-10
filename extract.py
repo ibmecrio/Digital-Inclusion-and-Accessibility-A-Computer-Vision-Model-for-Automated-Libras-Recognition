@@ -1,14 +1,15 @@
 import math
 import numpy as np
 
-def extract_relative_coords(detection):
+def extract_relative_coords(detection, time_since_last_frame_ms, last_wrist_position):
     if not detection.hand_landmarks:
-        return np.array([])
+        return np.array([]), None
     
     landmarks = detection.hand_landmarks[0]
     treated_landmarks = list()
     
     handedness = detection.handedness[0][0].category_name
+    current_wrist_position = np.array([landmarks[0].x, landmarks[0].y, landmarks[0].z])
     
     # Subtracts point 0 coordinates from every point,
     # normalizing the position.
@@ -29,7 +30,21 @@ def extract_relative_coords(detection):
         treated_landmarks.append(y_normalized)
         treated_landmarks.append(z_normalized)
     
-    # Resizes based on the distance between landmark 0 (wrist)
+    # Estabilishing wrist velocity (not scaled yet)
+    if last_wrist_position is not None and len(last_wrist_position) == 3:
+        
+        delta_time_s = (time_since_last_frame_ms / 1000.0) + 1e-6
+        wrist_velocity = (current_wrist_position - last_wrist_position) / delta_time_s
+        
+        if handedness == 'Left':
+            wrist_velocity[0] = -wrist_velocity[0]
+            
+    else:
+        wrist_velocity = np.array([0.0, 0.0, 0.0])
+        
+    treated_landmarks.extend(wrist_velocity)
+    
+    # Rescales based on the distance between landmark 0 (wrist)
     # and landmark 9 (middle finger base)
     x9 = treated_landmarks[9*3]
     y9 = treated_landmarks[(9*3)+1]
@@ -43,4 +58,4 @@ def extract_relative_coords(detection):
     treated_landmarks = np.array(treated_landmarks)
     treated_landmarks = treated_landmarks / scale_factor
     
-    return treated_landmarks
+    return treated_landmarks, current_wrist_position
